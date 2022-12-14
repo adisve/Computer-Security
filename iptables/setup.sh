@@ -28,7 +28,7 @@ iptables -P FORWARD DROP
 iptables -A INPUT -p tcp -m multiport --sports 80,443 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -p tcp -m multiport --dports 80,443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 
-# -- Allow incoming/outgoing connections with source/destination ports 80,443 for protocol UDP (port 53 for DNS) --
+# -- Allow incoming/outgoing connections with source/destination port 53 for protocol UDP (port 53 for DNS) --
 #
 iptables -A INPUT -p udp --sport 53 -j ACCEPT
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
