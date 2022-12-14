@@ -12,6 +12,7 @@ import java.security.cert.CertificateException;
 import java.util.Arrays;
 import java.util.Formatter;
 
+
 public class CipherHandle {
     private SecretKeySpec AES_KEY;
     private IvParameterSpec IV;
@@ -27,9 +28,24 @@ public class CipherHandle {
     private String privateKeyPass = "lab1KeyPass";
     private String storeFileName = "src/resources/lab1Store";
 
+    /**
+     * Reads bytes in specified file. Stores first encryption key,
+     * second encryption key and the IV in individual arrays. Then,
+     * load the private key from the store with the help of store password,
+     * alias and key password. After this, we assign AES key, IV and Private
+     * key 1 to class attributes, using the decrypted result of encKey1, encKey2,
+     * and encIv as inputs to each Parameter/Key-Spec creation.
+     * 
+     * Only works for this specific
+     * file as byte ranges should technically not be hardcoded for
+     * sake of reusability.
+     * @param fileName
+     * @throws RuntimeException
+     */
     public void assignKeyAndIv(String fileName) throws RuntimeException {
         try {
             byte[] fileBytes = FileManager.readFile(fileName);
+
             byte[] encKey1 = Arrays.copyOfRange(fileBytes, 0, 128);
             byte[] encKey2 = Arrays.copyOfRange(fileBytes, 256, 384);
             byte[] encIv = Arrays.copyOfRange(fileBytes, 128, 256);
@@ -47,6 +63,13 @@ public class CipherHandle {
         }
     }
 
+    /**
+     * Decrypt the ciphertext into plaintext. Depends on
+     * IV value and AES key to be already loaded in the class
+     * attributes.
+     * 
+     * @param fileName
+     */
     public void decryptCipherText(String fileName)
     {
         if (this.IV != null && this.AES_KEY != null)
@@ -61,11 +84,16 @@ public class CipherHandle {
             }
         }
         else
-        {
             System.out.println("No AES key or IV available for handle");
-        }
     }
 
+    /**
+     * Converts byte array to hex string representation.
+     * 
+     * @param bytes
+     * @param formatter
+     * @return
+     */
     private static String toHexString(byte[] bytes, Formatter formatter)
     {
         
@@ -77,6 +105,12 @@ public class CipherHandle {
         return res;
     }
 
+    /**
+     * Creates secret key from private key 2 bytes and HmacMD5
+     * hashing algorithm. We then can compute the Hmac with the
+     * plaintext bytes and convert it into a hex string to compare
+     * with the stored Hmacs we have in the project.
+     */
     public void calculateHMAC()
     {
         SecretKeySpec secretKeySpec = new SecretKeySpec(this.PRIVATE_KEY_2.getEncoded(), "HmacMD5");
@@ -92,6 +126,14 @@ public class CipherHandle {
         }
     }
 
+    /**
+     * Compares the computed Hmacs with the stored Hmacs
+     * available as plaintext, telling us which one
+     * matches.
+     * 
+     * @param fileName1
+     * @param fileName2
+     */
     public void compareHMAC(String fileName1, String fileName2)
     {
         try {
@@ -114,6 +156,14 @@ public class CipherHandle {
         }
     }
 
+    /**
+     * Verifies the signature of a certificate by comparing
+     * to our own computation/result.
+     * 
+     * @param lab1SignaturePath
+     * @param encSign1Path
+     * @param encSign2Path
+     */
     public void verifySignature(String lab1SignaturePath, String encSign1Path, String encSign2Path)
     {
         try {
@@ -137,6 +187,16 @@ public class CipherHandle {
         }
     }
 
+    /**
+     * Performs verification of data with signature.
+     * 
+     * @param sig
+     * @param publicKey
+     * @param data
+     * @return
+     * @throws InvalidKeyException
+     * @throws java.security.SignatureException
+     */
     private boolean doVerify(Signature sig, PublicKey publicKey, byte[] data)
             throws InvalidKeyException, java.security.SignatureException {
         sig.initVerify(publicKey);

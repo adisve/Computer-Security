@@ -8,7 +8,15 @@ import java.security.*;
 
 public class Decryption {
 
-    /// Decrypt ciphertext, given the secret key and IV value
+    /**
+     * Decrypt ciphertext, given the secret key and IV value.
+     * 
+     * @param ciphertext
+     * @param key
+     * @param iv
+     * @return
+     * @throws RuntimeException
+     */
     public String decryptCipherText(byte[] ciphertext, SecretKeySpec key, IvParameterSpec iv) throws RuntimeException
     {
         try {
@@ -23,6 +31,15 @@ public class Decryption {
         }
     }
 
+    /**
+     * Decrypt specified byte array with the help
+     * of private key.
+     * 
+     * @param element
+     * @param privateKey
+     * @return
+     * @throws RuntimeException
+     */
     public byte[] decryptRSA(byte[] element, Key privateKey) throws RuntimeException {
         try {
             Cipher decryptCipher = Cipher.getInstance("RSA");
@@ -30,7 +47,7 @@ public class Decryption {
             return decryptCipher.doFinal(element);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
                  InvalidKeyException e) {
-            System.out.println("Error decrypting private key");
+            System.out.println("Error decrypting element");
             throw new RuntimeException(e);
         }
     }

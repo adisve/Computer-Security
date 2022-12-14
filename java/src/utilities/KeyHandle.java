@@ -10,7 +10,21 @@ import java.security.cert.X509Certificate;
 
 public class KeyHandle {
 
-    /// Load key from store
+    /**
+     * Load secret key from keystore with the help of 
+     * store password, alias and key password.
+     * 
+     * @param storeFilename
+     * @param storePassword
+     * @param alias
+     * @param keyPassword
+     * @return
+     * @throws KeyStoreException
+     * @throws IOException
+     * @throws CertificateException
+     * @throws NoSuchAlgorithmException
+     * @throws UnrecoverableKeyException
+     */
     public Key loadKey(String storeFilename, String storePassword, String alias, char[] keyPassword)
             throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException, UnrecoverableKeyException
     {
@@ -21,6 +35,13 @@ public class KeyHandle {
         return store.getKey(alias, keyPassword);
     }
 
+    /**
+     * Loads the public key from the specified certificate file.
+     * 
+     * @param fileName
+     * @return
+     * @throws RuntimeException
+     */
     public PublicKey loadCertificateKey(String fileName) throws RuntimeException
     {
         try {

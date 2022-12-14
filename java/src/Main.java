@@ -2,13 +2,15 @@ import utilities.CipherHandle;
 
 public class Main {
 
-    public static void main(String[] args) {
-        CipherHandle cipherHandle = new CipherHandle();
+    public static void main(String args[]) {
+        
+        assert args.length == 7: "Not enough arguments passed to main function";
 
-        cipherHandle.assignKeyAndIv("src/resources/ciphertext.enc");
-        cipherHandle.decryptCipherText("src/resources/ciphertext.enc");
+        CipherHandle cipherHandle = new CipherHandle();
+        cipherHandle.assignKeyAndIv(args[0]);
+        cipherHandle.decryptCipherText(args[1]);
         cipherHandle.calculateHMAC();
-        cipherHandle.compareHMAC("src/resources/ciphertext.mac1.txt", "src/resources/ciphertext.mac2.txt");
-        cipherHandle.verifySignature("src/resources/lab1Sign.cert", "src/resources/ciphertext.enc.sig1", "src/resources/ciphertext.enc.sig2");
+        cipherHandle.compareHMAC(args[2], args[3]);
+        cipherHandle.verifySignature(args[4], args[5], args[6]);
     }
 }

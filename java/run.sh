@@ -1,1 +1,1 @@
-java -cp bin Main
+java -ea -cp bin Main src/resources/ciphertext.enc src/resources/ciphertext.enc src/resources/ciphertext.mac1.txt src/resources/ciphertext.mac2.txt src/resources/lab1Sign.cert src/resources/ciphertext.enc.sig1 src/resources/ciphertext.enc.sig2
