@@ -1,9 +1,6 @@
-package Utilities;
+package utilities;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.Mac;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
@@ -13,10 +10,7 @@ import java.nio.file.Path;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Formatter;
-
-import static javax.xml.crypto.dsig.SignatureMethod.HMAC_SHA512;
 
 public class CipherHandle {
     private SecretKeySpec AES_KEY;
@@ -31,8 +25,7 @@ public class CipherHandle {
     private String storePass = "lab1StorePass";
     private String privateKeyAlias = "lab1EncKeys";
     private String privateKeyPass = "lab1KeyPass";
-    private String storeFileName = "src/lab1Store";
-    private String cipherText = "src/ciphertext.enc";
+    private String storeFileName = "src/resources/lab1Store";
 
     public void assignKeyAndIv(String fileName) throws RuntimeException {
         try {
@@ -73,24 +66,29 @@ public class CipherHandle {
         }
     }
 
-    private static String toHexString(byte[] bytes)
+    private static String toHexString(byte[] bytes, Formatter formatter)
     {
-        Formatter formatter = new Formatter();
+        
         for (byte b : bytes) {
             formatter.format("%02x", b);
         }
-        return formatter.toString();
+        String res = formatter.toString();
+        formatter.close();
+        return res;
     }
 
     public void calculateHMAC()
     {
         SecretKeySpec secretKeySpec = new SecretKeySpec(this.PRIVATE_KEY_2.getEncoded(), "HmacMD5");
+        Formatter formatter = new Formatter();
         try {
             Mac mac = Mac.getInstance("HmacMD5");
             mac.init(secretKeySpec);
-            this.HMAC = toHexString(mac.doFinal(this.plainText.getBytes()));
+            this.HMAC = toHexString(mac.doFinal(this.plainText.getBytes()), formatter);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new RuntimeException(e);
+        } finally {
+            formatter.close();
         }
     }
 
