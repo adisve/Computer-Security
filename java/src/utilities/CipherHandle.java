@@ -13,12 +13,13 @@ import java.util.Arrays;
 import java.util.Formatter;
 
 
-public class CipherHandle {
-    private SecretKeySpec AES_KEY;
-    private IvParameterSpec IV;
-    private Key PRIVATE_KEY_1;
-    private Key PRIVATE_KEY_2;
-    private String HMAC;
+public class CipherHandle
+{
+    private SecretKeySpec symmetricKey;
+    private IvParameterSpec iv;
+    private Key privateStoreKey;
+    private SecretKeySpec hashKey;
+    private String hmac;
     private Decryption decryption = new Decryption();
     private KeyHandle keyHandle = new KeyHandle();
     private String plainText;
@@ -29,42 +30,55 @@ public class CipherHandle {
     private String storeFileName = "src/resources/lab1Store";
 
     /**
-     * Reads bytes in specified file. Stores first encryption key,
-     * second encryption key and the IV in individual arrays. Then,
-     * load the private key from the store with the help of store password,
-     * alias and key password. After this, we assign AES key, IV and Private
-     * key 1 to class attributes, using the decrypted result of encKey1, encKey2,
+     * Reads bytes in specified file. Stores symmetric key,
+     * hash key and the IV value, in individual arrays.
+     * 
+     * Load the certificate key from the store with the help of store password,
+     * alias and key password. After this, we assign symmetric key, IV and hash
+     * key to our class attributes, using the decrypted result of encKey1, encKey2,
      * and encIv as inputs to each Parameter/Key-Spec creation.
      * 
      * Only works for this specific
      * file as byte ranges should technically not be hardcoded for
      * sake of reusability.
+     * 
      * @param fileName
      * @throws RuntimeException
      */
-    public void assignKeyAndIv(String fileName) throws RuntimeException {
+    public void assignKeyAndIv(String fileName) throws RuntimeException
+    {
         try {
+
+            /* Slice bytes in file appropriately */
             byte[] fileBytes = FileManager.readFile(fileName);
 
             byte[] encKey1 = Arrays.copyOfRange(fileBytes, 0, 128);
             byte[] encKey2 = Arrays.copyOfRange(fileBytes, 256, 384);
             byte[] encIv = Arrays.copyOfRange(fileBytes, 128, 256);
 
-            this.PRIVATE_KEY_1 = keyHandle.loadKey(storeFileName, storePass, privateKeyAlias, privateKeyPass.toCharArray());
+            this.privateStoreKey = keyHandle.loadKey(storeFileName, storePass, privateKeyAlias, privateKeyPass.toCharArray());
 
-            this.AES_KEY = new SecretKeySpec(decryption.decryptRSA(encKey1, this.PRIVATE_KEY_1), "AES");
-            this.IV = new IvParameterSpec(decryption.decryptRSA(encIv, this.PRIVATE_KEY_1));
-            this.PRIVATE_KEY_2 = new SecretKeySpec(decryption.decryptRSA(encKey2, this.PRIVATE_KEY_1), "RSA");
+            /* Symmetric key and IV value used in decrypting ciphertext data */
+            this.symmetricKey = new SecretKeySpec(decryption.decryptRSA(encKey1, this.privateStoreKey), "AES");
+            this.iv = new IvParameterSpec(decryption.decryptRSA(encIv, this.privateStoreKey));
+
+            /** Creates secret key used in decryption generation of HMAC to cross-reference
+             * with stored HMACs in project folder
+            */
+            this.hashKey = new SecretKeySpec(
+                (new SecretKeySpec(decryption.decryptRSA(encKey2, this.privateStoreKey), "RSA") /* Decrypt stored encrypted hash key with store key (encrypted with RSA) */
+                ).getEncoded(), 
+                "HmacMD5");
 
         } catch (IOException | UnrecoverableKeyException | CertificateException |
                  KeyStoreException | NoSuchAlgorithmException e) {
-            System.out.println("Error retrieving AES key and IV. Exiting");
+            System.out.println("Error retrieving AES key/IV. Exiting");
             System.exit(0);
         }
     }
 
     /**
-     * Decrypt the ciphertext into plaintext. Depends on
+     * Decrypts the ciphertext into plaintext. Depends on
      * IV value and AES key to be already loaded in the class
      * attributes.
      * 
@@ -72,12 +86,13 @@ public class CipherHandle {
      */
     public void decryptCipherText(String fileName)
     {
-        if (this.IV != null && this.AES_KEY != null)
+        if (this.iv != null && this.symmetricKey != null)
         {
             try {
                 byte[] fileBytes = FileManager.readFile(fileName);
                 byte[] cipherText = Arrays.copyOfRange(fileBytes, 384, fileBytes.length);
-                this.plainText = decryption.decryptCipherText(cipherText, this.AES_KEY, this.IV);
+                /* Decrypt cipher text with symmetric key and IV value */
+                this.plainText = decryption.decryptCipherText(cipherText, this.symmetricKey, this.iv);
                 System.out.println(plainText);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -88,37 +103,17 @@ public class CipherHandle {
     }
 
     /**
-     * Converts byte array to hex string representation.
-     * 
-     * @param bytes
-     * @param formatter
-     * @return
+     * Computes a HMAC with the plaintext bytes and converts
+     * it into a hex string that is compared with the stored Hmacs 
+     * we have in the project folder.
      */
-    private static String toHexString(byte[] bytes, Formatter formatter)
+    public void generateHMAC()
     {
-        
-        for (byte b : bytes) {
-            formatter.format("%02x", b);
-        }
-        String res = formatter.toString();
-        formatter.close();
-        return res;
-    }
-
-    /**
-     * Creates secret key from private key 2 bytes and HmacMD5
-     * hashing algorithm. We then can compute the Hmac with the
-     * plaintext bytes and convert it into a hex string to compare
-     * with the stored Hmacs we have in the project.
-     */
-    public void calculateHMAC()
-    {
-        SecretKeySpec secretKeySpec = new SecretKeySpec(this.PRIVATE_KEY_2.getEncoded(), "HmacMD5");
         Formatter formatter = new Formatter();
         try {
             Mac mac = Mac.getInstance("HmacMD5");
-            mac.init(secretKeySpec);
-            this.HMAC = toHexString(mac.doFinal(this.plainText.getBytes()), formatter);
+            mac.init(this.hashKey);
+            this.hmac = Utils.toHexString(mac.doFinal(this.plainText.getBytes()), formatter);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new RuntimeException(e);
         } finally {
@@ -127,27 +122,33 @@ public class CipherHandle {
     }
 
     /**
-     * Compares the computed Hmacs with the stored Hmacs
+     * Compares the two generated HMACs with the stored HMACs
      * available as plaintext, telling us which one
      * matches.
      * 
-     * @param fileName1
-     * @param fileName2
+     * Instructions:
+     * "Now that you have decrypted the ciphertext and it is time to calculate the message 
+     * authentication code (MAC). Use key2 and your decrypted plaintext to calculate a mac. 
+     * Compare your calculated mac with the two mac files (in hex string) in the .zip file. 
+     * Which mac is the correct one?"
+     * 
+     * @param mac1Filename
+     * @param mac2Filename
      */
-    public void compareHMAC(String fileName1, String fileName2)
+    public void verifyMessageAuthenticationCode(String mac1Filename, String mac2Filename)
     {
         try {
-            String hmac1 = Files.readString(Path.of(fileName1), StandardCharsets.UTF_8);
-            String hmac2 = Files.readString(Path.of(fileName2), StandardCharsets.UTF_8);
-            System.out.printf("\nHMAC 1: %s", hmac1);
+            String hmac1 = Files.readString(Path.of(mac1Filename), StandardCharsets.UTF_8);
+            String hmac2 = Files.readString(Path.of(mac2Filename), StandardCharsets.UTF_8);
+            System.out.printf("HMAC 1: %s", hmac1);
             System.out.printf("\nHMAC 2: %s", hmac2);
-            if (hmac1.equals(this.HMAC))
+            if (hmac1.equals(this.hmac))
             {
-                System.out.printf("\n%s from %s matches generated HMAC %s\n", hmac1, fileName1, this.HMAC);
+                System.out.printf("\n'%s' from '%s' matches generated HMAC '%s'\n", hmac1, mac1Filename, this.hmac);
             }
-            else if (hmac2.equals(this.HMAC))
+            else if (hmac2.equals(this.hmac))
             {
-                System.out.printf("\n%s from %s matches generated HMAC %s\n", hmac2, fileName2, this.HMAC);
+                System.out.printf("\n'%s' from '%s' matches generated HMAC '%s'\n", hmac2, mac2Filename, this.hmac);
             }
             else
                 System.out.println("Generated HMAC does not match any of the two files\n");
@@ -158,29 +159,43 @@ public class CipherHandle {
 
     /**
      * Verifies the signature of a certificate by comparing
-     * to our own computation/result.
+     * it to our own computation/result.
      * 
-     * @param lab1SignaturePath
+     * Instructions:
+     * As a receiver, to verify the digital signature we need to read the sender’s public key that is 
+     * currently stored in the public key certificate file lab1Sign.cert. You need to read the file and 
+     * then load the public key with the java class CertificateFactory, or with the command window 
+     * tool ‘keytool’ (not recommended).  When you have the public key, you can check which of 
+     * the two given signature files is correct. 
+     * The digital signature has been signed using the SHA1withRSA algorithm, and used the 
+     * plaintext and the sender’s private key as inputs. 
+     * 
+     * @param lab2CertificatePath
      * @param encSign1Path
      * @param encSign2Path
      */
-    public void verifySignature(String lab1SignaturePath, String encSign1Path, String encSign2Path)
+    public void verifyDigitalSignature(String lab2CertificatePath, String encSign1Path, String encSign2Path)
     {
         try {
-            // Get public key from certificate
-            PublicKey publicKey = keyHandle.loadCertificateKey(lab1SignaturePath);
-            // Create signature
+            
+            /* Read the sender’s public key that is stored in the public key certificate file */
+            PublicKey publicKey = keyHandle.loadCertificateKey(lab2CertificatePath);
+
+            /* Create signature by using SHA1/RSA algorithm */
             Signature privateSignature = Signature.getInstance("SHA1withRSA");
-            privateSignature.initSign((PrivateKey) this.PRIVATE_KEY_1);
+
+            /* Add our store key for signing certificate */
+            privateSignature.initSign((PrivateKey) this.privateStoreKey);
+            /* Add plaintext resolution to signature */
             privateSignature.update(this.plainText.getBytes(StandardCharsets.UTF_8));
             privateSignature.sign();
 
-            // Verify
-            boolean resSig1 = doVerify(privateSignature, publicKey, FileManager.readFile(encSign1Path));
-            boolean resSig2 = doVerify(privateSignature, publicKey, FileManager.readFile(encSign2Path));
+            /* Check which signature in project folder can be verified based on our private signature */
+            boolean validSignature1 = verify(privateSignature, publicKey, FileManager.readFile(encSign1Path));
+            boolean validSignature2 = verify(privateSignature, publicKey, FileManager.readFile(encSign2Path));
 
-            System.out.println("VERIFIED SIGNATURE 1: " + resSig1);
-            System.out.println("VERIFIED SIGNATURE 2: " + resSig2);
+            System.out.println("Verified signature 1: " + validSignature1);
+            System.out.println("Verified signature 2: " + validSignature2);
 
         } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException | IOException e) {
             throw new RuntimeException(e);
@@ -197,7 +212,7 @@ public class CipherHandle {
      * @throws InvalidKeyException
      * @throws java.security.SignatureException
      */
-    private boolean doVerify(Signature sig, PublicKey publicKey, byte[] data)
+    private boolean verify(Signature sig, PublicKey publicKey, byte[] data)
             throws InvalidKeyException, java.security.SignatureException {
         sig.initVerify(publicKey);
         sig.update(this.plainText.getBytes());

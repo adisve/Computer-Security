@@ -9,23 +9,27 @@ import java.security.*;
 public class Decryption {
 
     /**
-     * Decrypt ciphertext, given the secret key and IV value.
+     * Decrypt ciphertext, given the symmetric key and 
+     * initialization vector value.
      * 
      * @param ciphertext
-     * @param key
+     * @param symmetricKey
      * @param iv
      * @return
      * @throws RuntimeException
      */
-    public String decryptCipherText(byte[] ciphertext, SecretKeySpec key, IvParameterSpec iv) throws RuntimeException
+    public String decryptCipherText(byte[] ciphertext, SecretKeySpec symmetricKey, IvParameterSpec iv) throws RuntimeException
     {
-        try {
+        try
+        {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            cipher.init(Cipher.DECRYPT_MODE, key, iv);
+            cipher.init(Cipher.DECRYPT_MODE, symmetricKey, iv);
             byte[] plainTextBytes = cipher.doFinal(ciphertext);
             return new String(plainTextBytes, StandardCharsets.UTF_8);
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException |
-                 IllegalBlockSizeException | BadPaddingException | InvalidKeyException e) {
+        } 
+        catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException |
+                 IllegalBlockSizeException | BadPaddingException | InvalidKeyException e)
+        {
             System.out.println("Error deciphering ciphertext");
             throw new RuntimeException(e);
         }
@@ -33,17 +37,17 @@ public class Decryption {
 
     /**
      * Decrypt specified byte array with the help
-     * of private key.
+     * of private store key.
      * 
      * @param element
-     * @param privateKey
+     * @param privateStoreKey
      * @return
      * @throws RuntimeException
      */
-    public byte[] decryptRSA(byte[] element, Key privateKey) throws RuntimeException {
+    public byte[] decryptRSA(byte[] element, Key privateStoreKey) throws RuntimeException {
         try {
             Cipher decryptCipher = Cipher.getInstance("RSA");
-            decryptCipher.init(Cipher.PRIVATE_KEY, privateKey);
+            decryptCipher.init(Cipher.PRIVATE_KEY, privateStoreKey);
             return decryptCipher.doFinal(element);
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
                  InvalidKeyException e) {

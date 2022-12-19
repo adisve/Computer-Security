@@ -11,12 +11,17 @@ import java.security.cert.X509Certificate;
 public class KeyHandle {
 
     /**
-     * Load secret key from keystore with the help of 
+     * Load private key from keystore with the help of 
      * store password, alias and key password.
+     * 
+     * Keystores and truststores are repositories that 
+     * contain cryptographic artifacts like certificates 
+     * and private keys that are used for cryptographic 
+     * protocols (such as TLS). 
      * 
      * @param storeFilename
      * @param storePassword
-     * @param alias
+     * @param storeAlias
      * @param keyPassword
      * @return
      * @throws KeyStoreException
@@ -25,18 +30,18 @@ public class KeyHandle {
      * @throws NoSuchAlgorithmException
      * @throws UnrecoverableKeyException
      */
-    public Key loadKey(String storeFilename, String storePassword, String alias, char[] keyPassword)
+    public Key loadKey(String storeFilename, String storePassword, String storeAlias, char[] keyPassword)
             throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException, UnrecoverableKeyException
     {
         KeyStore store = KeyStore.getInstance(KeyStore.getDefaultType());
         FileInputStream file = new FileInputStream(storeFilename);
         store.load(file, storePassword.toCharArray());
         file.close();
-        return store.getKey(alias, keyPassword);
+        return store.getKey(storeAlias, keyPassword);
     }
 
     /**
-     * Loads the public key from the specified certificate file.
+     * Loads the public key from the specified certificate.
      * 
      * @param fileName
      * @return
