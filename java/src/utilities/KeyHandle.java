@@ -8,7 +8,8 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 
-public class KeyHandle {
+public class KeyHandle
+{
 
     /**
      * Load private key from keystore with the help of 

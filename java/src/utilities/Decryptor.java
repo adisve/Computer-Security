@@ -1,26 +1,26 @@
 package utilities;
 
-import javax.crypto.Mac;
+import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.*;
+import javax.crypto.Mac;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.*;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
 import java.util.Formatter;
 
-
-public class CipherHandle
+public class Decryptor
 {
+
     private SecretKeySpec symmetricKey;
     private IvParameterSpec iv;
     private Key privateStoreKey;
     private SecretKeySpec hashKey;
     private String hmac;
-    private Decryption decryption = new Decryption();
     private KeyHandle keyHandle = new KeyHandle();
     private String plainText;
 
@@ -28,6 +28,7 @@ public class CipherHandle
     private String privateKeyAlias = "lab1EncKeys";
     private String privateKeyPass = "lab1KeyPass";
     private String storeFileName = "src/resources/lab1Store";
+
 
     /**
      * Reads bytes in specified file. Stores symmetric key,
@@ -45,9 +46,10 @@ public class CipherHandle
      * @param fileName
      * @throws RuntimeException
      */
-    public void assignKeyAndIv(String fileName) throws RuntimeException
+    public void assignKeysAndIv(String fileName) throws RuntimeException
     {
-        try {
+        try
+        {
 
             /* Slice bytes in file appropriately */
             byte[] fileBytes = FileManager.readFile(fileName);
@@ -59,47 +61,25 @@ public class CipherHandle
             this.privateStoreKey = keyHandle.loadKey(storeFileName, storePass, privateKeyAlias, privateKeyPass.toCharArray());
 
             /* Symmetric key and IV value used in decrypting ciphertext data */
-            this.symmetricKey = new SecretKeySpec(decryption.decryptRSA(encKey1, this.privateStoreKey), "AES");
-            this.iv = new IvParameterSpec(decryption.decryptRSA(encIv, this.privateStoreKey));
+            this.symmetricKey = new SecretKeySpec(this.decryptRSA(encKey1, this.privateStoreKey), "AES");
+            this.iv = new IvParameterSpec(this.decryptRSA(encIv, this.privateStoreKey));
 
             /** Creates secret key used in decryption generation of HMAC to cross-reference
              * with stored HMACs in project folder
             */
             this.hashKey = new SecretKeySpec(
-                (new SecretKeySpec(decryption.decryptRSA(encKey2, this.privateStoreKey), "RSA") /* Decrypt stored encrypted hash key with store key (encrypted with RSA) */
+				/* Decrypt stored encrypted hash key with store key (encrypted with RSA) */
+                (new SecretKeySpec(this.decryptRSA(encKey2, this.privateStoreKey), "RSA")
                 ).getEncoded(), 
                 "HmacMD5");
 
-        } catch (IOException | UnrecoverableKeyException | CertificateException |
-                 KeyStoreException | NoSuchAlgorithmException e) {
+        } 
+        catch (IOException | UnrecoverableKeyException | CertificateException |
+                 KeyStoreException | NoSuchAlgorithmException e) 
+        {
             System.out.println("Error retrieving AES key/IV. Exiting");
             System.exit(0);
         }
-    }
-
-    /**
-     * Decrypts the ciphertext into plaintext. Depends on
-     * IV value and AES key to be already loaded in the class
-     * attributes.
-     * 
-     * @param fileName
-     */
-    public void decryptCipherText(String fileName)
-    {
-        if (this.iv != null && this.symmetricKey != null)
-        {
-            try {
-                byte[] fileBytes = FileManager.readFile(fileName);
-                byte[] cipherText = Arrays.copyOfRange(fileBytes, 384, fileBytes.length);
-                /* Decrypt cipher text with symmetric key and IV value */
-                this.plainText = decryption.decryptCipherText(cipherText, this.symmetricKey, this.iv);
-                System.out.println(plainText);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        else
-            System.out.println("No AES key or IV available for handle");
     }
 
     /**
@@ -110,13 +90,18 @@ public class CipherHandle
     public void generateHMAC()
     {
         Formatter formatter = new Formatter();
-        try {
+        try
+        {
             Mac mac = Mac.getInstance("HmacMD5");
             mac.init(this.hashKey);
             this.hmac = Utils.toHexString(mac.doFinal(this.plainText.getBytes()), formatter);
-        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+        } 
+        catch (NoSuchAlgorithmException | InvalidKeyException e)
+        {
             throw new RuntimeException(e);
-        } finally {
+        }
+        finally
+        {
             formatter.close();
         }
     }
@@ -137,7 +122,8 @@ public class CipherHandle
      */
     public void verifyMessageAuthenticationCode(String mac1Filename, String mac2Filename)
     {
-        try {
+        try
+        {
             String hmac1 = Files.readString(Path.of(mac1Filename), StandardCharsets.UTF_8);
             String hmac2 = Files.readString(Path.of(mac2Filename), StandardCharsets.UTF_8);
             System.out.printf("HMAC 1: %s", hmac1);
@@ -152,7 +138,9 @@ public class CipherHandle
             }
             else
                 System.out.println("Generated HMAC does not match any of the two files\n");
-        } catch (IOException e) {
+        }
+        catch (IOException e) 
+        {
             throw new RuntimeException(e);
         }
     }
@@ -176,7 +164,8 @@ public class CipherHandle
      */
     public void verifyDigitalSignature(String lab2CertificatePath, String encSign1Path, String encSign2Path)
     {
-        try {
+        try
+		{
             
             /* Read the sender’s public key that is stored in the public key certificate file */
             PublicKey publicKey = keyHandle.loadCertificateKey(lab2CertificatePath);
@@ -197,7 +186,9 @@ public class CipherHandle
             System.out.println("Verified signature 1: " + validSignature1);
             System.out.println("Verified signature 2: " + validSignature2);
 
-        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException | IOException e) {
+        } 
+		catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException | IOException e)
+		{
             throw new RuntimeException(e);
         }
     }
@@ -213,9 +204,90 @@ public class CipherHandle
      * @throws java.security.SignatureException
      */
     private boolean verify(Signature sig, PublicKey publicKey, byte[] data)
-            throws InvalidKeyException, java.security.SignatureException {
+            throws InvalidKeyException, java.security.SignatureException
+    {
         sig.initVerify(publicKey);
         sig.update(this.plainText.getBytes());
         return sig.verify(data);
+    }
+
+    /**
+     * Decrypt ciphertext, given the symmetric key and 
+     * initialization vector value.
+     * 
+     * @param ciphertext
+     * @param symmetricKey
+     * @param iv
+     * @return
+     * @throws RuntimeException
+     */
+    private String getPlainText(byte[] ciphertext, SecretKeySpec symmetricKey, IvParameterSpec iv) throws RuntimeException
+    {
+        try
+        {
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, symmetricKey, iv);
+            byte[] plainTextBytes = cipher.doFinal(ciphertext);
+            return new String(plainTextBytes, StandardCharsets.UTF_8);
+        } 
+        catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException |
+                 IllegalBlockSizeException | BadPaddingException | InvalidKeyException e)
+        {
+            System.out.println("Error deciphering ciphertext");
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Decrypt specified byte array with the help
+     * of private store key.
+     * 
+     * @param element
+     * @param privateStoreKey
+     * @return
+     * @throws RuntimeException
+     */
+    public byte[] decryptRSA(byte[] element, Key privateStoreKey) throws RuntimeException
+    {
+        try
+		{
+            Cipher decryptCipher = Cipher.getInstance("RSA");
+            decryptCipher.init(Cipher.PRIVATE_KEY, privateStoreKey);
+            return decryptCipher.doFinal(element);
+        } 
+		catch (NoSuchAlgorithmException | NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException |
+                 InvalidKeyException e)
+		{
+            System.out.println("Error decrypting element");
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Decrypts the ciphertext into plaintext. Depends on
+     * IV value and AES key to be already loaded in the class
+     * attributes.
+     * 
+     * @param fileName
+     */
+    public void decryptCipherText(String fileName)
+    {
+        if (this.iv != null && this.symmetricKey != null)
+        {
+            try 
+			{
+                byte[] fileBytes = FileManager.readFile(fileName);
+                byte[] cipherText = Arrays.copyOfRange(fileBytes, 384, fileBytes.length);
+                /* Decrypt cipher text with symmetric key and IV value */
+                this.plainText = this.getPlainText(cipherText, this.symmetricKey, this.iv);
+                System.out.println(plainText);
+            }
+			catch (IOException e)
+			{
+                throw new RuntimeException(e);
+            }
+        }
+        else
+            System.out.println("No AES key or IV available");
     }
 }
